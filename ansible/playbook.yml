@@ -1,0 +1,9 @@
+---
+- name: Mac Dev Environment Setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  roles:
+    - homebrew
+
