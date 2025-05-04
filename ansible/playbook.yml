@@ -6,4 +6,5 @@
 
   roles:
     - homebrew
+    - flutter_setup
 

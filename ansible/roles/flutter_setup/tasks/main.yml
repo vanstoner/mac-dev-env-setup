@@ -1,0 +1,32 @@
+# Ensure homebrew tab for FVM is here
+- name: Add FVM Homebrew tap
+  community.general.homebrew_tap:
+    name: leoafarias/fvm
+    state: present
+
+
+# installs FVM + pins Flutter 3.29.0
+- name: Ensure FVM (Flutter Version Manager) is installed
+  community.general.homebrew:
+    name: fvm
+    state: present
+
+- name: Install Flutter 3.29.0 via FVM
+  shell: |
+    source ~/.zprofile
+    fvm install 3.29.0
+    fvm global 3.29.0
+  args:
+    creates: "~/.fvm/versions/3.29.0"
+
+- name: Add FVM to PATH
+  lineinfile:
+    path: ~/.zprofile
+    line: 'export PATH="$PATH:$HOME/.fvm/default/bin"'
+    create: yes
+
+- name: Pre‑cache iOS & Android artefacts
+  shell: fvm flutter precache --ios --android
+  environment:
+    PATH: "$HOME/.fvm/default/bin:{{ ansible_env.PATH }}"
+
