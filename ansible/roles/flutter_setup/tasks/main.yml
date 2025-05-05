@@ -1,32 +1,83 @@
-# Ensure homebrew tab for FVM is here
-- name: Add FVM Homebrew tap
+---
+# Gather Brew prefix once (works on Intel and Apple‑Silicon)
+- name: Get Homebrew prefix
+  set_fact:
+    brew_prefix: "{{ lookup('pipe', 'brew --prefix') }}"
+
+# ── FVM + Flutter 3.29 ───────────────────────────────────────────────
+- name: Tap FVM repository
   community.general.homebrew_tap:
     name: leoafarias/fvm
     state: present
 
-
-# installs FVM + pins Flutter 3.29.0
-- name: Ensure FVM (Flutter Version Manager) is installed
+- name: Install FVM
   community.general.homebrew:
     name: fvm
     state: present
 
-- name: Install Flutter 3.29.0 via FVM
+- name: Install Flutter 3.29.0 via FVM
   shell: |
-    source ~/.zshrc
     fvm install 3.29.0
     fvm global 3.29.0
   args:
-    creates: "~/.fvm/versions/3.29.0"
+    creates: "{{ lookup('env','HOME') }}/fvm/versions/3.29.0"
 
-- name: Add FVM to PATH
+- name: Add FVM to PATH in ~/.zshrc
   lineinfile:
-    path: ~/.zshrc
-    line: 'export PATH="$PATH:$HOME/.fvm/default/bin"'
+    path: "{{ lookup('env','HOME') }}/.zshrc"
+    line: 'export PATH="$PATH:$HOME/fvm/default/bin"'
+    state: present
     create: yes
 
-- name: Pre‑cache iOS & Android artefacts
+- name: Pre‑cache iOS & Android artifacts
   shell: fvm flutter precache --ios --android
   environment:
-    PATH: "$HOME/.fvm/default/bin:{{ ansible_env.PATH }}"
+    PATH: "{{ lookup('env','HOME') }}/fvm/default/bin:{{ lookup('env','PATH') }}"
+
+# ── Ruby 3 (for CocoaPods) ───────────────────────────────────────────
+- name: Install / upgrade Ruby 3 via Homebrew
+  community.general.homebrew:
+    name: ruby
+    state: present
+    update_homebrew: yes
+
+- name: Add Ruby to PATH in ~/.zshrc
+  lineinfile:
+    path: "{{ lookup('env','HOME') }}/.zshrc"
+    line: 'export PATH="{{ brew_prefix }}/opt/ruby/bin:$PATH"'
+    state: present
+    create: yes
+
+# ── CocoaPods via RubyGems ───────────────────────────────────────────
+
+# Discover gem‑bindir once (works on Intel / Apple Silicon)
+- name: Get Ruby gem bindir
+  command: "{{ brew_prefix }}/opt/ruby/bin/ruby -e 'require \"rubygems\"; print Gem.bindir'"
+  register: gem_bindir
+  changed_when: false
+
+# Install CocoaPods gem (idempotent)
+- name: Install CocoaPods gem
+  command: "{{ brew_prefix }}/opt/ruby/bin/gem install --no-document cocoapods"
+  args:
+    creates: "{{ gem_bindir.stdout }}/pod"          # skip if pod already exists
+  environment:
+    PATH: "{{ brew_prefix }}/opt/ruby/bin:{{ lookup('env','PATH') }}"
+
+# Add it to the path in profile
+- name: Add gem bindir to PATH
+  lineinfile:
+    path: "{{ lookup('env','HOME') }}/.zshrc"
+    line: 'export PATH="{{ gem_bindir.stdout }}:$PATH"'
+    state: present
+    create: yes
+
+
+# Pre‑fetch specs repo (runs once)
+- name: pod setup (idempotent)
+  command: "{{ gem_bindir.stdout }}/pod setup"
+  args:
+    creates: "{{ lookup('env','HOME') }}/.cocoapods/repos"
+  environment:
+    PATH: "{{ gem_bindir.stdout }}:{{ brew_prefix }}/opt/ruby/bin:{{ lookup('env','PATH') }}"
 
