@@ -13,7 +13,7 @@
 
 - name: Install Flutter 3.29.0 via FVM
   shell: |
-    source ~/.zprofile
+    source ~/.zshrc
     fvm install 3.29.0
     fvm global 3.29.0
   args:
@@ -21,7 +21,7 @@
 
 - name: Add FVM to PATH
   lineinfile:
-    path: ~/.zprofile
+    path: ~/.zshrc
     line: 'export PATH="$PATH:$HOME/.fvm/default/bin"'
     create: yes
 
